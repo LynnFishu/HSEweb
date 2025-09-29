@@ -7,7 +7,7 @@ const pool = new Pool({
 	database: process.env.DB_NAME,
 	password: process.env.DB_PASSWORD,
 	port: process.env.DB_PORT,
-	ssl: { ca: fs.readFileSync('etc/ssl/rds/ap-southeast-5-bundle.pem','utf8')}
+	ssl: { ca: fs.readFileSync('/home/ubuntu/rds-certs/ap-southeast-5-bundle.pem','utf8')}
 });
 
 (async () => {
