@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import mqtt from 'mqtt';
 import { useAuth } from './AuthContext';
+import { API_ENDPOINTS } from '../config/api';
 
 const MQTTContext = createContext(null);
 
@@ -40,7 +41,7 @@ export const MQTTProvider = ({ children }) => {
   useEffect(() => {
     if (user) {
       console.log('Checking for active work order on mount');
-      fetch(`http://localhost:5000/api/work-orders/user/${user.id}`)
+      fetch(API_ENDPOINTS.WORK_ORDERS_BY_USER(user.id))
         .then(response => response.json())
         .then(orders => {
           const activeOrder = orders.find(order => order.status === 'Approved');
@@ -108,7 +109,7 @@ export const MQTTProvider = ({ children }) => {
             if (!currentActive && user?.id) {
               console.log('No active work order - attempting to fetch approved orders for user:', user.id);
               try {
-                const resp = await fetch(`http://localhost:5000/api/work-orders/user/${user.id}`);
+                const resp = await fetch(API_ENDPOINTS.WORK_ORDERS_BY_USER(user.id));
                 if (resp.ok) {
                   const orders = await resp.json();
                   const approved = Array.isArray(orders) ? orders.find(o => o.status === 'Approved') : null;
@@ -195,11 +196,11 @@ export const MQTTProvider = ({ children }) => {
             console.log('Sending violation to backend:', violationData);
 
             console.log('Attempting to send violation to backend:', {
-                url: 'http://localhost:5000/api/violations',
+                url: API_ENDPOINTS.VIOLATIONS,
                 data: violationData
             });
 
-            const response = await fetch('http://localhost:5000/api/violations', {
+            const response = await fetch(API_ENDPOINTS.VIOLATIONS, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',

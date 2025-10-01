@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { CircularProgress } from '@mui/material';
+import { API_ENDPOINTS } from '../config/api';
 
 const AuthContext = createContext({
   user: null,
@@ -42,7 +43,7 @@ export const AuthProvider = ({ children }) => {
       const requestBody = JSON.stringify({ email, password, workId });
       console.log('Request body:', requestBody);
       
-      const response = await fetch('http://localhost:5000/api/login', {
+      const response = await fetch(API_ENDPOINTS.LOGIN, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -91,7 +92,7 @@ export const AuthProvider = ({ children }) => {
   const checkWorkId = async (workId) => {
     try {
       console.log('Checking Work ID:', workId);
-      const response = await fetch(`http://localhost:5000/api/contractors/check-workid/${workId}`);
+      const response = await fetch(API_ENDPOINTS.CHECK_WORK_ID(workId));
       if (!response.ok) {
         throw new Error(`Server returned ${response.status}: ${response.statusText}`);
       }

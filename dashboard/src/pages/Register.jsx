@@ -11,6 +11,7 @@ import {
   Stack,
   Divider
 } from '@mui/material';
+import { API_ENDPOINTS } from '../config/api';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -99,7 +100,7 @@ const Register = () => {
       };
 
       console.log('Sending registration data:', registrationData);
-      const response = await fetch('http://localhost:5000/api/contractors/register', {
+      const response = await fetch(API_ENDPOINTS.REGISTER, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

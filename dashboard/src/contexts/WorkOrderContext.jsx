@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import API_BASE_URL, { API_ENDPOINTS } from '../config/api';
 
 const WorkOrderContext = createContext(null);
 
@@ -19,8 +20,8 @@ export const WorkOrderProvider = ({ children }) => {
       
       console.log('Fetching work orders for user:', { userId: user?.id, role: user?.role });
       try {
-        console.log('Making request to:', `http://localhost:5000${endpoint}`);
-        const response = await fetch(`http://localhost:5000${endpoint}`, {
+        console.log('Making request to:', `${API_BASE_URL}${endpoint}`);
+        const response = await fetch(`${API_BASE_URL}${endpoint}`, {
           headers: {
             'Authorization': `Bearer ${user?.id}`,
             'X-User-Role': user?.role || 'none'
@@ -73,8 +74,8 @@ export const WorkOrderProvider = ({ children }) => {
           ? `/api/work-orders/user/${user.id}`
           : '/api/work-orders';
         
-        console.log('Making request to:', `http://localhost:5000${endpoint}`);
-        const response = await fetch(`http://localhost:5000${endpoint}`);
+        console.log('Making request to:', `${API_BASE_URL}${endpoint}`);
+        const response = await fetch(`${API_BASE_URL}${endpoint}`);
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
@@ -138,7 +139,7 @@ export const WorkOrderProvider = ({ children }) => {
 
       console.log('Sending request with body:', requestBody);
 
-      const response = await fetch('http://localhost:5000/api/work-orders', {
+      const response = await fetch(API_ENDPOINTS.WORK_ORDERS, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -170,7 +171,7 @@ export const WorkOrderProvider = ({ children }) => {
       
       // If updating status, use the status endpoint
       if ('status' in updates) {
-        const response = await fetch(`http://localhost:5000/api/work-orders/${id}/status`, {
+        const response = await fetch(API_ENDPOINTS.WORK_ORDER_STATUS(id), {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -215,7 +216,7 @@ export const WorkOrderProvider = ({ children }) => {
   const setWorkOrderActive = async (id, isActive) => {
     try {
       console.log('Toggling work order active state:', { id, isActive });
-      const response = await fetch(`http://localhost:5000/api/work-orders/${id}/active`, {
+      const response = await fetch(API_ENDPOINTS.WORK_ORDER_ACTIVE(id), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !!isActive })

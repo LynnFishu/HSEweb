@@ -22,8 +22,10 @@ import {
   CheckCircle as CheckCircleIcon,
   Error as ErrorIcon,
   Help as HelpIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { useWorkOrders } from '../contexts/WorkOrderContext';
+import { API_ENDPOINTS } from '../config/api';
 
 const ViolationsPage = () => {
   const [violations, setViolations] = useState([]);
@@ -47,7 +49,7 @@ const ViolationsPage = () => {
   const fetchViolations = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/violations');
+      const response = await fetch(API_ENDPOINTS.VIOLATIONS);
       if (!response.ok) {
         throw new Error('Failed to fetch violations');
       }
@@ -272,8 +274,9 @@ const ViolationsPage = () => {
             <IconButton
               onClick={() => setSelectedImage(null)}
               sx={{ position: 'absolute', right: 8, top: 8 }}
+              aria-label="close"
             >
-              ×
+              <CloseIcon />
             </IconButton>
           </DialogTitle>
           <DialogContent>

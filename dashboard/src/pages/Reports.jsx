@@ -25,6 +25,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+import { API_ENDPOINTS } from '../config/api';
 
 const Reports = () => {
   const [violations, setViolations] = useState([]);
@@ -48,7 +49,7 @@ const Reports = () => {
   // Helper function to check if server is running
   const checkServerConnection = async () => {
     try {
-      const response = await fetch('http://localhost:5000/test');
+      const response = await fetch(API_ENDPOINTS.TEST);
       if (!response.ok) return false;
       const data = await response.json();
       return data.message === 'Backend is working!';
@@ -69,7 +70,7 @@ const Reports = () => {
       }
 
       // Fetch violations
-      const violationsResponse = await fetch('http://localhost:5000/api/violations');
+      const violationsResponse = await fetch(API_ENDPOINTS.VIOLATIONS);
       if (!violationsResponse.ok) {
         const errorText = await violationsResponse.text();
         console.error('Violations response error:', errorText);
@@ -79,7 +80,7 @@ const Reports = () => {
       
       // Fetch contractors with their stats
       console.log('Fetching contractors...');
-      const contractorsResponse = await fetch('http://localhost:5000/api/contractors');
+      const contractorsResponse = await fetch(API_ENDPOINTS.CONTRACTORS);
       console.log('Contractors response:', contractorsResponse);
       
       if (!contractorsResponse.ok) {
@@ -92,7 +93,7 @@ const Reports = () => {
       console.log('Fetched contractors:', contractorsData);
       
       // Fetch work orders
-      const workOrdersResponse = await fetch('http://localhost:5000/api/work-orders');
+      const workOrdersResponse = await fetch(API_ENDPOINTS.WORK_ORDERS);
       if (!workOrdersResponse.ok) {
         const errorText = await workOrdersResponse.text();
         console.error('Work orders response error:', errorText);
