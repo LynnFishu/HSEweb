@@ -192,13 +192,6 @@ const WorkOrderRow = ({ workOrder, violations, onImageClick }) => {
                       <Typography variant="caption" color="text.secondary">
                         {new Date(violation.timestamp).toLocaleDateString()}
                       </Typography>
-                      <Chip 
-                        label={`${(violation.confidence * 100).toFixed(0)}%`}
-                        color={violation.confidence > 0.8 ? 'error' : 'warning'}
-                        size="small"
-                        variant="outlined"
-                        sx={{ height: '20px', minWidth: '45px' }}
-                      />
                     </Box>
                   </Paper>
                 ))}
