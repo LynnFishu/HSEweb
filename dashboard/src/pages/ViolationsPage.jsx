@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Paper,
@@ -31,6 +31,8 @@ const ViolationsPage = () => {
   const [violations, setViolations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
+  const hasLoadedOnceRef = useRef(false);
   // Removed pagination since we're using collapsible rows
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedImage, setSelectedImage] = useState(null);
@@ -45,10 +47,13 @@ const ViolationsPage = () => {
 
   // Removed server status check
 
-  // Fetch violations with debounce
-  const fetchViolations = useCallback(async () => {
+  // Fetch violations (supports silent background refresh)
+  const fetchViolations = useCallback(async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
+      // Only show the "Loading..." UI on the initial load (or explicit non-silent fetch)
+      if (!silent && !hasLoadedOnceRef.current) {
+        setLoading(true);
+      }
       const response = await fetch(API_ENDPOINTS.VIOLATIONS);
       if (!response.ok) {
         throw new Error('Failed to fetch violations');
@@ -56,11 +61,18 @@ const ViolationsPage = () => {
       const data = await response.json();
       setViolations(data);
       setError(null);
+      setLastUpdatedAt(new Date());
+      hasLoadedOnceRef.current = true;
     } catch (err) {
       console.error('Error fetching violations:', err);
       setError(err.message);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      } else if (!hasLoadedOnceRef.current) {
+        // If a silent fetch was the first fetch (shouldn't happen), keep UI consistent
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -69,14 +81,24 @@ const ViolationsPage = () => {
     
     const loadData = async () => {
       if (isSubscribed) {
-        await fetchViolations();
+        await fetchViolations({ silent: false });
       }
     };
 
+    // Initial load
     loadData();
+
+    // Auto-refresh every 10 seconds
+    const refreshInterval = setInterval(() => {
+      if (isSubscribed) {
+        // Background refresh: do NOT flip loading state, so expanded rows stay open
+        fetchViolations({ silent: true });
+      }
+    }, 10000); // 10 seconds = 10000 milliseconds
 
     return () => {
       isSubscribed = false;
+      clearInterval(refreshInterval);
     };
   }, [fetchViolations]);
 
@@ -123,9 +145,14 @@ const ViolationsPage = () => {
   return (
     <Box sx={{ p: 3, background: 'linear-gradient(90deg, #c3a8f7 0%, #a8e6ef 100%)', minHeight: '100vh' }}>
       <Paper sx={{ p: 3, borderRadius: 2 }}>
-        <Typography variant="h5" sx={{ mb: 3, color: '#2B3467', fontWeight: 600 }}>
-          PPE Violations
-        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', mb: 3, gap: 2 }}>
+          <Typography variant="h5" sx={{ color: '#2B3467', fontWeight: 600 }}>
+            PPE Violations
+          </Typography>
+          <Typography variant="caption" sx={{ color: '#677294' }}>
+            Last updated: {lastUpdatedAt ? lastUpdatedAt.toLocaleTimeString() : '—'}
+          </Typography>
+        </Box>
 
         {/* Filters */}
         <Grid container spacing={2} sx={{ mb: 3 }}>

@@ -5,8 +5,10 @@ import { API_ENDPOINTS } from '../config/api';
 
 const MQTTContext = createContext(null);
 
-// Using a free public broker for testing over WebSocket
-const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';  // Using WSS (WebSocket Secure) port
+// Public broker for testing over WebSocket - reachable from anywhere now
+// that the Orin has real internet (wired to the dog for RTSP, Wi-Fi free
+// for internet access).
+const MQTT_BROKER = 'wss://broker.emqx.io:8084/mqtt';
 const MQTT_TOPIC = 'ppe/detection/#';  // # is a wildcard for all subtopics
 
 export const MQTTProvider = ({ children }) => {
@@ -37,20 +39,37 @@ export const MQTTProvider = ({ children }) => {
     console.log('Successfully set active work order for violations:', workOrder);
   };
 
-  // Set active work order on mount if user is logged in
+  // Set active work order on mount if user is logged in (only for contractors)
   useEffect(() => {
-    if (user) {
-      console.log('Checking for active work order on mount');
+    if (user && user.role === 'contractor') {
+      console.log('Checking for active work order on mount for contractor:', user.id);
       fetch(API_ENDPOINTS.WORK_ORDERS_BY_USER(user.id))
         .then(response => response.json())
         .then(orders => {
-          const activeOrder = orders.find(order => order.status === 'Approved');
+          console.log('Work orders fetched on mount:', orders);
+          console.log('Work orders statuses:', orders.map(o => ({ id: o.id, status: o.status, is_active: o.is_active })));
+          
+          // Find approved AND active work order
+          const activeOrder = orders.find(order => 
+            order.status === 'Approved' && order.is_active !== false
+          );
+          
           if (activeOrder) {
             setActiveWorkOrder(activeOrder);
             console.log('Set active work order from API:', activeOrder);
+          } else {
+            console.log('No approved and active work order found on mount');
+            console.log('Available work orders:', orders.map(o => ({
+              id: o.id,
+              work_order_number: o.work_order_number,
+              status: o.status,
+              is_active: o.is_active
+            })));
           }
         })
         .catch(error => console.error('Error fetching work orders:', error));
+    } else if (user && user.role === 'admin') {
+      console.log('User is admin - skipping work order fetch (admins view all work orders)');
     }
   }, [user]);
 
@@ -103,69 +122,109 @@ export const MQTTProvider = ({ children }) => {
         // Send violation to backend API
         if (payload.type && (payload.type.startsWith('no-') || payload.type.startsWith('NO-'))) {
           console.log('Processing violation:', payload);
+          
           try {
-            // Ensure we have an active approved work order; if missing, fetch and set one
-            let currentActive = activeWorkOrder;
-            if (!currentActive && user?.id) {
-              console.log('No active work order - attempting to fetch approved orders for user:', user.id);
-              try {
-                const resp = await fetch(API_ENDPOINTS.WORK_ORDERS_BY_USER(user.id));
-                if (resp.ok) {
-                  const orders = await resp.json();
-                  const approved = Array.isArray(orders) ? orders.find(o => o.status === 'Approved') : null;
-                  if (approved) {
-                    setActiveWorkOrder(approved);
-                    currentActive = approved;
-                    console.log('Fetched and set active approved work order:', approved);
-                  } else {
-                    console.log('No approved work orders found for user on fallback fetch');
-                  }
-                } else {
-                  console.log('Failed to fetch user work orders for fallback:', resp.status, resp.statusText);
-                }
-              } catch (e) {
-                console.error('Error during fallback fetch for active work order:', e);
-              }
-            }
-
-            // Check if we have an active work order after fallback
-            if (!currentActive) {
-              console.log('No active work order after fallback - skipping violation');
-              return;
-            }
-
-            // Check if work order is approved
-            if (currentActive.status !== 'Approved') {
-              console.log('Work order not approved - skipping violation');
-              return;
-            }
-
-            if (currentActive.is_active === false) {
-              console.log('Work order is deactivated - skipping violation');
-              return;
-            }
-
-            // Validate location if coordinates are provided
-            if (payload.location && activeWorkOrder.site_location) {
-              const { latitude, longitude } = payload.location;
-              const siteLocation = activeWorkOrder.site_location;
+            // Handle different payload formats
+            // hsedemo.py sends: type, confidence, timestamp, frame_size, image
+            // May or may not include: contractor_id, work_order_id
+            
+            let contractorId = payload.contractor_id;
+            let workOrderId = payload.work_order_id;
+            
+            // If payload doesn't have contractor/work_order, try to find them
+            if (!contractorId || !workOrderId) {
+              console.log('Payload missing contractor_id or work_order_id - attempting to find them');
               
-              if (!isWithinSiteBoundary(
-                latitude, 
-                longitude, 
-                parseFloat(siteLocation.lat), 
-                parseFloat(siteLocation.lng)
-              )) {
-                console.log('Violation location outside work site boundary - skipping');
-                return;
+              // Strategy 1: If logged-in user is a contractor, use their info
+              if (user && user.role === 'contractor') {
+                contractorId = contractorId || user.id;
+                
+                // Try to find active work order for this contractor
+                if (!workOrderId) {
+                  try {
+                    const resp = await fetch(API_ENDPOINTS.WORK_ORDERS_BY_USER(user.id));
+                    if (resp.ok) {
+                      const orders = await resp.json();
+                      console.log('Fetched work orders for contractor:', orders);
+                      
+                      // Find approved and active work order
+                      const approved = Array.isArray(orders) ? orders.find(o => 
+                        o.status === 'Approved' && o.is_active !== false
+                      ) : null;
+                      
+                      if (approved) {
+                        workOrderId = approved.id;
+                        console.log('Found active work order for contractor:', workOrderId);
+                      } else {
+                        console.log('No approved and active work orders found for contractor');
+                        console.log('Available work orders:', orders.map(o => ({
+                          id: o.id,
+                          work_order_number: o.work_order_number,
+                          status: o.status,
+                          is_active: o.is_active
+                        })));
+                      }
+                    }
+                  } catch (e) {
+                    console.error('Error fetching work orders:', e);
+                  }
+                }
+              }
+              
+              // Strategy 2: If admin is logged in or still no work order, try to find any active work order
+              // This allows admins to see violations even if payload doesn't include contractor info
+              if (!workOrderId) {
+                console.log('Attempting to find any active work order for violation processing');
+                try {
+                  // Fetch all work orders (admin can see all)
+                  const resp = await fetch(API_ENDPOINTS.WORK_ORDERS);
+                  if (resp.ok) {
+                    const allOrders = await resp.json();
+                    console.log('Fetched all work orders:', allOrders.length);
+                    
+                    // Find first approved and active work order
+                    const activeOrder = Array.isArray(allOrders) ? allOrders.find(o => 
+                      o.status === 'Approved' && o.is_active !== false
+                    ) : null;
+                    
+                    if (activeOrder) {
+                      workOrderId = activeOrder.id;
+                      contractorId = contractorId || activeOrder.requested_by;
+                      console.log('Found active work order for violation:', {
+                        work_order_id: workOrderId,
+                        contractor_id: contractorId,
+                        work_order_number: activeOrder.work_order_number
+                      });
+                    } else {
+                      console.log('No approved and active work orders found in system');
+                    }
+                  }
+                } catch (e) {
+                  console.error('Error fetching all work orders:', e);
+                }
               }
             }
+            
+            // Final validation
+            if (!contractorId || !workOrderId) {
+              console.log('Cannot process violation - missing required info');
+              console.log('contractor_id:', contractorId);
+              console.log('work_order_id:', workOrderId);
+              return;
+            }
+            
+            console.log('Processing violation with:', {
+              contractor_id: contractorId,
+              work_order_id: workOrderId,
+              type: payload.type
+            });
 
             // Prepare the violation data
             const violationData = {
               type: payload.type.toLowerCase(), // Normalize to lowercase
               confidence: payload.confidence,
-              image_url: payload.image,
+              // Support both 'image' (hsedemo.py) and 'image_url' field names
+              image_url: payload.image || payload.image_url,
               // Ensure timestamp is in ISO format
               timestamp: (() => {
                 if (!payload.timestamp) return new Date().toISOString();
@@ -188,9 +247,8 @@ export const MQTTProvider = ({ children }) => {
                 }
               })(),
               location: payload.location || null,
-              contractor_id: user?.id || null,
-              work_order_id: currentActive?.id || null,
-              site_location: currentActive?.site_location || null
+              contractor_id: contractorId,
+              work_order_id: workOrderId
             };
 
             console.log('Sending violation to backend:', violationData);
@@ -206,16 +264,16 @@ export const MQTTProvider = ({ children }) => {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json'
               },
-                body: JSON.stringify({
+              body: JSON.stringify({
                 type: violationData.type,
                 confidence: parseFloat(violationData.confidence), // Ensure confidence is a number
                 image_url: violationData.image_url,
                 timestamp: violationData.timestamp,
-                contractor_id: user?.id || null,
-                work_order_id: currentActive?.id || null,
-                work_order_number: currentActive?.work_order_number || null,
-                contractor_name: user?.name || null,
-                company_name: user?.company_name || null
+                contractor_id: violationData.contractor_id,
+                work_order_id: violationData.work_order_id,
+                work_order_number: payload.work_order_number || null,
+                contractor_name: payload.contractor_name || user?.name || null,
+                company_name: payload.company_name || user?.company_name || null
               })
             });
 

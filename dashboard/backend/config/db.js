@@ -8,10 +8,10 @@ const config = {
     database: process.env.DB_NAME,
     password: process.env.DB_PASSWORD,
     port: process.env.DB_PORT,
-    ssl: { 
+    ssl: process.env.DB_SSL === 'true' ? { 
         ca: fs.readFileSync('/home/ubuntu/rds-certs/ap-southeast-5-bundle.pem','utf8'),
-    rejectUnauthorized: true
-    }
+        rejectUnauthorized: true
+    } : false
 };
 
 console.log('Initializing database connection with config:', {

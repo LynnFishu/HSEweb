@@ -165,14 +165,32 @@ router.get('/user/:userId', async (req, res) => {
     try {
         // Verify the user exists (allow admin or contractor)
         const userCheck = await pool.query(
-            'SELECT id, role FROM users WHERE id = $1',
+            'SELECT id, role, name, email FROM users WHERE id = $1',
             [userId]
         );
 
         if (userCheck.rows.length === 0) {
+            console.log(`User ${userId} not found`);
             return res.status(404).json({ error: 'User not found' });
         }
 
+        const user = userCheck.rows[0];
+        console.log(`Fetching work orders for user: ${user.name} (ID: ${userId}, Role: ${user.role})`);
+
+        // First, check all work orders to see what exists
+        const allWorkOrders = await pool.query(
+            'SELECT id, work_order_number, requested_by, status, is_active FROM work_orders ORDER BY submitted_at DESC'
+        );
+        console.log(`Total work orders in database: ${allWorkOrders.rows.length}`);
+        console.log('All work orders:', allWorkOrders.rows.map(wo => ({
+            id: wo.id,
+            work_order_number: wo.work_order_number,
+            requested_by: wo.requested_by,
+            status: wo.status,
+            is_active: wo.is_active
+        })));
+
+        // Now get work orders for this specific user
         const result = await pool.query(
             `SELECT 
                 w.*,
@@ -186,7 +204,16 @@ router.get('/user/:userId', async (req, res) => {
              ORDER BY w.submitted_at DESC`,
             [userId]
         );
-        console.log('Fetched user work orders:', result.rows);
+        
+        console.log(`Work orders for user ${userId}: ${result.rows.length} found`);
+        console.log('User work orders:', result.rows.map(wo => ({
+            id: wo.id,
+            work_order_number: wo.work_order_number,
+            status: wo.status,
+            is_active: wo.is_active,
+            requested_by: wo.requested_by
+        })));
+        
         res.json(result.rows);
     } catch (error) {
         console.error('Error fetching user work orders:', error);

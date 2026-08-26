@@ -1,5 +1,7 @@
 // API configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://hse.sbd-one.com:5000';
+// For localhost testing, set VITE_API_URL=http://localhost:5000 in your .env file
+// For production, set VITE_API_URL=http://hseapi.sbd-one.com
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export const API_ENDPOINTS = {
   // Auth endpoints
@@ -20,7 +22,7 @@ export const API_ENDPOINTS = {
   VIOLATIONS: `${API_BASE_URL}/api/violations`,
   
   // Test endpoint
-  TEST: `${API_BASE_URL}/test`
+  TEST: `${API_BASE_URL}/api/test`
 };
 
 export default API_BASE_URL;
