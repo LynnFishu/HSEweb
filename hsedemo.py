@@ -14,10 +14,10 @@ import base64
 import time
 
 # Video source: the robot dog's onboard RTSP stream (replaces the old local
-# webcam / cv2.VideoCapture(0)). Using the wired Ethernet IP now that the
-# Orin is physically cabled to the dog - frees the Wi-Fi radio for internet
-# access at the same time (needed for MQTT).
-RTSP_URL = "rtsp://192.168.168.168:8554/test"
+# webcam / cv2.VideoCapture(0)). Orin's Wi-Fi joins the dog's own hotspot
+# (D100003) for this - nothing is physically attached to the dog. Internet
+# for MQTT comes separately via USB phone tethering.
+RTSP_URL = "rtsp://192.168.234.1:8554/test"
 
 # No monitor is attached to the Orin while mounted on the roaming dog -
 # violations are viewed through the web dashboard instead of a local window.
