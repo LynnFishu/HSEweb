@@ -12,6 +12,7 @@ from datetime import datetime
 import threading
 import base64
 import time
+import subprocess
 
 # Video source: the robot dog's onboard RTSP stream (replaces the old local
 # webcam / cv2.VideoCapture(0)). Orin's Wi-Fi joins the dog's own hotspot
@@ -19,9 +20,9 @@ import time
 # for MQTT comes separately via USB phone tethering.
 RTSP_URL = "rtsp://192.168.234.1:8554/test"
 
-# No monitor is attached to the Orin while mounted on the roaming dog -
-# violations are viewed through the web dashboard instead of a local window.
-HEADLESS = True
+# Set to True only when running headless (no monitor attached).
+# False enables the live fullscreen detection window for demo viewing.
+HEADLESS = False
 
 # Path to the PPE weights on the Orin's filesystem - adjust if placed elsewhere.
 MODEL_PATH = "/home/orin/Desktop/My Dockers/Model/bestppe.pt"
@@ -111,13 +112,38 @@ def send_violation(violation_type, confidence, frame):
         print(f"Failed to send MQTT message: {e}")
 
 
+WINDOW_NAME = "HSE Live Detection"
+
+
+def get_screen_size():
+    """Read the Orin monitor size so the feed can fill it with no grey bars."""
+    try:
+        out = subprocess.check_output(["xrandr"], text=True, stderr=subprocess.DEVNULL)
+        for line in out.splitlines():
+            if "*" in line:
+                size = line.strip().split()[0]
+                width, height = size.split("x")
+                return int(width), int(height)
+    except Exception:
+        pass
+    return 1920, 1080
+
+
+def fill_screen(frame, screen_w, screen_h):
+    """Stretch the whole frame to the monitor. No crop, no grey borders."""
+    return cv2.resize(frame, (screen_w, screen_h), interpolation=cv2.INTER_LINEAR)
+
+
 # ----------------------
-# FULLSCREEN WINDOW SETUP (skipped when HEADLESS - no monitor on the roaming dog)
+# FULLSCREEN WINDOW SETUP
 # ----------------------
 fullscreen = True
+screen_w, screen_h = get_screen_size()
 if not HEADLESS:
-    cv2.namedWindow("YOLOv8 HSE Detection", cv2.WINDOW_NORMAL)
-    cv2.setWindowProperty("YOLOv8 HSE Detection", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    print(f"display: {screen_w}x{screen_h}")
+    cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(WINDOW_NAME, screen_w, screen_h)
+    cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 # ----------------------
 
 
@@ -201,8 +227,8 @@ try:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
         if not HEADLESS:
-            # Show window
-            cv2.imshow("YOLOv8 HSE Detection", frame)
+            display = fill_screen(frame, screen_w, screen_h)
+            cv2.imshow(WINDOW_NAME, display)
 
             key = cv2.waitKey(1) & 0xFF
 
@@ -210,7 +236,9 @@ try:
             if key == ord('f'):
                 fullscreen = not fullscreen
                 mode = cv2.WINDOW_FULLSCREEN if fullscreen else cv2.WINDOW_NORMAL
-                cv2.setWindowProperty("YOLOv8 HSE Detection", cv2.WND_PROP_FULLSCREEN, mode)
+                cv2.setWindowProperty(WINDOW_NAME, cv2.WND_PROP_FULLSCREEN, mode)
+                if not fullscreen:
+                    cv2.resizeWindow(WINDOW_NAME, screen_w, screen_h)
 
             # ESC exits
             if key == 27:
