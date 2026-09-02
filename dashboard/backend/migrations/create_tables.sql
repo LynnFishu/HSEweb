@@ -1,5 +1,4 @@
-
-none -- Create users table if not exists
+-- Create users table if not exists
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -21,6 +20,7 @@ CREATE TABLE IF NOT EXISTS work_orders (
     site_location JSONB,
     status VARCHAR(50) DEFAULT 'Pending',
     rejection_reason TEXT,
+    is_active BOOLEAN DEFAULT true,
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
