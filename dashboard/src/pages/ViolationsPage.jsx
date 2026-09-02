@@ -54,7 +54,7 @@ const ViolationsPage = () => {
       if (!silent && !hasLoadedOnceRef.current) {
         setLoading(true);
       }
-      const response = await fetch(API_ENDPOINTS.VIOLATIONS);
+      const response = await fetch(`${API_ENDPOINTS.VIOLATIONS}?limit=100`);
       if (!response.ok) {
         throw new Error('Failed to fetch violations');
       }

@@ -313,8 +313,19 @@ app.get('/api/violations', async (req, res) => {
       end_date,
       contractor_id,
       work_order_id,
-      work_order_number
+      work_order_number,
+      limit
     } = req.query;
+
+    // Cap how many rows (and their embedded images) can be requested at once -
+    // without this, polling clients pull the entire history's images every
+    // request, which gets huge and slow as violations accumulate.
+    const MAX_LIMIT = 200;
+    const DEFAULT_LIMIT = 100;
+    const parsedLimit = parseInt(limit, 10);
+    const effectiveLimit = Number.isFinite(parsedLimit)
+      ? Math.min(Math.max(parsedLimit, 1), MAX_LIMIT)
+      : DEFAULT_LIMIT;
 
     let query = `
       SELECT 
@@ -353,6 +364,9 @@ app.get('/api/violations', async (req, res) => {
     }
 
     query += ' ORDER BY v.timestamp DESC';
+
+    params.push(effectiveLimit);
+    query += ` LIMIT $${params.length}`;
 
     const violations = await pool.query(query, params);
     res.json(violations.rows);
