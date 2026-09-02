@@ -1,0 +1,15 @@
+{
+  "name": "HSE Dashboard",
+  "install": "bash .cursor/install.sh",
+  "start": "bash .cursor/start.sh",
+  "terminals": [
+    {
+      "name": "backend",
+      "command": "cd dashboard/backend && node server.js"
+    },
+    {
+      "name": "frontend",
+      "command": "cd dashboard && npm run dev -- --host"
+    }
+  ]
+}
