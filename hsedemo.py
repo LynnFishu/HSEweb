@@ -19,9 +19,9 @@ import time
 # for MQTT comes separately via USB phone tethering.
 RTSP_URL = "rtsp://192.168.234.1:8554/test"
 
-# No monitor is attached to the Orin while mounted on the roaming dog -
-# violations are viewed through the web dashboard instead of a local window.
-HEADLESS = True
+# Set to True only when running headless (no monitor attached).
+# False enables the live fullscreen detection window for demo viewing.
+HEADLESS = False
 
 # Path to the PPE weights on the Orin's filesystem - adjust if placed elsewhere.
 MODEL_PATH = "/home/orin/Desktop/My Dockers/Model/bestppe.pt"
@@ -112,12 +112,12 @@ def send_violation(violation_type, confidence, frame):
 
 
 # ----------------------
-# FULLSCREEN WINDOW SETUP (skipped when HEADLESS - no monitor on the roaming dog)
+# FULLSCREEN WINDOW SETUP
 # ----------------------
 fullscreen = True
 if not HEADLESS:
-    cv2.namedWindow("YOLOv8 HSE Detection", cv2.WINDOW_NORMAL)
-    cv2.setWindowProperty("YOLOv8 HSE Detection", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
+    cv2.namedWindow("HSE Live Detection", cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty("HSE Live Detection", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 # ----------------------
 
 
@@ -201,8 +201,7 @@ try:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
 
         if not HEADLESS:
-            # Show window
-            cv2.imshow("YOLOv8 HSE Detection", frame)
+            cv2.imshow("HSE Live Detection", frame)
 
             key = cv2.waitKey(1) & 0xFF
 
@@ -210,7 +209,7 @@ try:
             if key == ord('f'):
                 fullscreen = not fullscreen
                 mode = cv2.WINDOW_FULLSCREEN if fullscreen else cv2.WINDOW_NORMAL
-                cv2.setWindowProperty("YOLOv8 HSE Detection", cv2.WND_PROP_FULLSCREEN, mode)
+                cv2.setWindowProperty("HSE Live Detection", cv2.WND_PROP_FULLSCREEN, mode)
 
             # ESC exits
             if key == 27:
